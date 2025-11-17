@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from src import crud
+from src import crud, models
 from src.database import get_db
 import os
 
@@ -34,10 +34,10 @@ def get_current_user(
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Не удалось проверить учетные данные",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("sub")
@@ -45,8 +45,16 @@ def get_current_user(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    
+
     user = crud.get_user_by_id(db, user_id=user_id)
     if user is None or not user.is_active:
         raise credentials_exception
     return user
+
+def get_current_admin(current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав доступа"
+        )
+    return current_user

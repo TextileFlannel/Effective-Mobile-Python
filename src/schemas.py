@@ -5,6 +5,7 @@ class UserBase(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+    role: str = "user"
 
 class UserCreate(UserBase):
     password: str
@@ -20,6 +21,7 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[EmailStr] = None
+    role: Optional[str] = None
 
 class UserResponse(UserBase):
     id: int

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from src import schemas
 from src import crud
 from src.database import get_db
-from src.auth import get_current_user, create_access_token
+from src.auth import get_current_user, create_access_token, get_current_admin
 from src import models
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -15,7 +15,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail="Email уже зарегистрирован"
         )
     return crud.create_user(db=db, user=user)
 
@@ -25,7 +25,7 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Неверный email или пароль"
         )
     access_token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
@@ -44,7 +44,7 @@ def update_user_me(
     if not updated_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
     return updated_user
 
@@ -54,8 +54,22 @@ def delete_user_me(
     db: Session = Depends(get_db)
 ):
     crud.soft_delete_user(db, current_user.id)
-    return {"message": "User account deactivated successfully"}
+    return {"message": "Аккаунт пользователя успешно деактивирован"}
 
 @router.post("/logout")
 def logout():
-    return {"message": "Successfully logged out"}
+    return {"message": "Успешно вышел из системы"}
+
+@router.get("/admin/users", response_model=list[schemas.UserResponse])
+def get_all_users(current_admin: models.User = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return crud.get_all_users(db)
+
+@router.delete("/admin/users/{user_id}")
+def delete_user(user_id: int, current_admin: models.User = Depends(get_current_admin), db: Session = Depends(get_db)):
+    user = crud.delete_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+    return {"message": f"Пользователь {user_id} успешно удален"}
